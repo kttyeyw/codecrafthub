@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>CodeCraftHub</title>
+
+<style>
+body {
+    font-family: Arial;
+    margin: 20px;
+    background: #f9fafb;
+}
+
+h1 {
+    color: #8B5CF6;
+}
+
+form {
+    margin-bottom: 20px;
+}
+
+input, textarea, select, button {
+    margin: 5px;
+    padding: 8px;
+}
+
+button {
+    cursor: pointer;
+}
+
+.add-btn {
+    background: #8B5CF6;
+    color: white;
+}
+
+.delete-btn {
+    background: #EF4444;
+    color: white;
+}
+
+.edit-btn {
+    background: #F59E0B;
+    color: white;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+th {
+    background: #8B5CF6;
+    color: white;
+}
+
+.message {
+    margin: 10px 0;
+}
+</style>
+
+</head>
+<body>
+
+<h1>CodeCraftHub: Your Learning Management Platform</h1>
+
+<div class="message" id="message"></div>
+
+<form id="courseForm">
+    <input type="text" id="name" placeholder="Название" required>
+    <textarea id="description" placeholder="Описание" required></textarea>
+    <input type="date" id="target_date" required>
+
+    <select id="status">
+        <option>Не начато</option>
+        <option>В процессе</option>
+        <option>Завершено</option>
+    </select>
+
+    <button class="add-btn" type="submit">Добавить курс</button>
+</form>
+
+<table>
+<thead>
+<tr>
+    <th>ID</th>
+    <th>Название</th>
+    <th>Описание</th>
+    <th>Дата</th>
+    <th>Статус</th>
+    <th>Действия</th>
+</tr>
+</thead>
+<tbody id="courseTable"></tbody>
+</table>
+
+<script>
+const API_URL = "http://localhost:5000/api/courses";
+
+const table = document.getElementById("courseTable");
+const form = document.getElementById("courseForm");
+const message = document.getElementById("message");
+
+function showMessage(text, color="green") {
+    message.textContent = text;
+    message.style.color = color;
+}
+
+// Получить все курсы
+async function loadCourses() {
+    try {
+        table.innerHTML = "Loading...";
+        const res = await fetch(API_URL);
+        const data = await res.json();
+
+        table.innerHTML = "";
+
+        data.forEach(course => {
+            const row = document.createElement("tr");
+
+            row.innerHTML = `
+                <td>${course.id}</td>
+                <td contenteditable="true">${course.name}</td>
+                <td contenteditable="true">${course.description}</td>
+                <td>${course.target_date}</td>
+                <td>
+                    <select>
+                        <option ${course.status==="Не начато"?"selected":""}>Не начато</option>
+                        <option ${course.status==="В процессе"?"selected":""}>В процессе</option>
+                        <option ${course.status==="Завершено"?"selected":""}>Завершено</option>
+                    </select>
+                </td>
+                <td>
+                    <button class="edit-btn">Сохранить</button>
+                    <button class="delete-btn">Удалить</button>
+                </td>
+            `;
+
+            // UPDATE
+            row.querySelector(".edit-btn").onclick = async () => {
+                const updated = {
+                    name: row.children[1].innerText,
+                    description: row.children[2].innerText,
+                    status: row.children[4].querySelector("select").value,
+                    target_date: course.target_date
+                };
+
+                await fetch(`${API_URL}/${course.id}`, {
+                    method: "PUT",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify(updated)
+                });
+
+                showMessage("Обновлено");
+                loadCourses();
+            };
+
+            // DELETE
+            row.querySelector(".delete-btn").onclick = async () => {
+                await fetch(`${API_URL}/${course.id}`, {
+                    method: "DELETE"
+                });
+
+                showMessage("Удалено", "red");
+                loadCourses();
+            };
+
+            table.appendChild(row);
+        });
+
+    } catch (err) {
+        showMessage("Ошибка загрузки", "red");
+    }
+}
+
+// CREATE
+form.onsubmit = async (e) => {
+    e.preventDefault();
+
+    const course = {
+        name: name.value,
+        description: description.value,
+        target_date: target_date.value,
+        status: status.value
+    };
+
+    try {
+        await fetch(API_URL, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(course)
+        });
+
+        showMessage("Курс добавлен");
+        form.reset();
+        loadCourses();
+
+    } catch {
+        showMessage("Ошибка добавления", "red");
+    }
+};
+
+loadCourses();
+</script>
+
+</body>
+</html>
